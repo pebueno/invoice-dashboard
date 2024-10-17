@@ -1,9 +1,13 @@
 import Fastify from 'fastify';
 import { connectDB } from './db/connection';
+import invoiceRoutes from './routes/invoiceRoutes';
 
 const fastify = Fastify({ logger: true });
 
 connectDB();
+
+// Register the invoice routes
+fastify.register(invoiceRoutes, { prefix: '/api' });
 
 fastify.get('/', async (request, reply) => {
   reply.send({ message: 'Backend is running!' });
