@@ -1,12 +1,14 @@
 import Fastify from 'fastify';
 import { connectDB } from './db/connection';
 import invoiceRoutes from './routes/invoiceRoutes';
+import multipart from '@fastify/multipart';
 
 const fastify = Fastify({ logger: true });
 
 connectDB();
 
-// Register the invoice routes
+fastify.register(multipart);
+
 fastify.register(invoiceRoutes, { prefix: '/api' });
 
 fastify.get('/', async (request, reply) => {

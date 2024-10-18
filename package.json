@@ -10,12 +10,17 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@fastify/multipart": "^9.0.1",
     "@prisma/client": "^5.21.0",
     "@types/node": "^22.7.6",
     "fastify": "^5.0.0",
+    "pdf-parse": "^1.1.1",
     "pg": "^8.13.0",
     "prisma": "^5.21.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
+  },
+  "devDependencies": {
+    "@types/pdf-parse": "^1.1.4"
   }
 }
