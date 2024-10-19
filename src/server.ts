@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import { connectDB } from './db/connection';
 import invoiceRoutes from './routes/invoiceRoutes';
 import multipart from '@fastify/multipart';
@@ -6,6 +7,12 @@ import multipart from '@fastify/multipart';
 const fastify = Fastify({ logger: true });
 
 connectDB();
+
+fastify.register(cors, {
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
 
 fastify.register(multipart);
 
