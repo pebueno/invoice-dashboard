@@ -14,11 +14,18 @@ datasource db {
 }
 
 model Invoice {
-  id               Int      @id @default(autoincrement())
-  clientNumber     String
-  referenceMonth   String
-  energyKwh        Float
-  energySCEE       Float
-  compensatedEnergy Float
-  createdAt        DateTime @default(now())
+  id                     Int      @id @default(autoincrement())
+  clientNumber           String
+  installationNumber     String?
+  referenceMonth         String
+  dueDate                String?
+  amountToPay            Float?
+  energyKwh              Float
+  energyKwhValue         Float?
+  energySCEE             Float
+  energySCEEValue        Float?
+  compensatedEnergy      Float
+  compensatedEnergyValue Float?
+  emissionDate           String? // New field to store the emission date
+  createdAt              DateTime @default(now())
 }

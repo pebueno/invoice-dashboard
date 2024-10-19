@@ -1,17 +1,34 @@
-import { PrismaClient } from '@prisma/client';
-import { FastifyRequest, FastifyReply } from 'fastify';
-import pdfParse from 'pdf-parse';
+import { PrismaClient } from "@prisma/client";
+import { FastifyRequest, FastifyReply } from "fastify";
+import pdfParse from "pdf-parse";
 
 const prisma = new PrismaClient();
 
-export const createInvoice = async (request: FastifyRequest, reply: FastifyReply) => {
-  const { clientNumber, referenceMonth, energyKwh, energySCEE, compensatedEnergy } = request.body as any;
+export const createInvoice = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  const {
+    clientNumber,
+    installationNumber,
+    referenceMonth,
+    dueDate,
+    emissionDate,
+    amountToPay,
+    energyKwh,
+    energySCEE,
+    compensatedEnergy,
+  } = request.body as any;
 
   try {
     const newInvoice = await prisma.invoice.create({
       data: {
         clientNumber,
+        installationNumber,
         referenceMonth,
+        dueDate,
+        emissionDate,
+        amountToPay,
         energyKwh,
         energySCEE,
         compensatedEnergy,
@@ -20,70 +37,115 @@ export const createInvoice = async (request: FastifyRequest, reply: FastifyReply
 
     reply.status(201).send(newInvoice);
   } catch (error) {
-    reply.status(500).send({ error: 'Failed to create invoice' });
+    reply.status(500).send({ error: "Failed to create invoice" });
   }
 };
 
-export const getInvoices = async (request: FastifyRequest, reply: FastifyReply) => {
+export const getInvoices = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
   try {
     const invoices = await prisma.invoice.findMany();
     reply.status(200).send(invoices);
   } catch (error) {
-    reply.status(500).send({ error: 'Failed to fetch invoices' });
+    reply.status(500).send({ error: "Failed to fetch invoices" });
   }
 };
 
-export const uploadInvoice = async (request: FastifyRequest, reply: FastifyReply) => {
-  const data = await request.file();
+export const uploadInvoice = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  const files = await request.files();
 
-  if (!data) {
-    return reply.status(400).send({ error: 'No file uploaded' });
+  if (!files) {
+    return reply.status(400).send({ error: "No files uploaded" });
   }
 
-  const buffer = await data.toBuffer();
+  const invoiceResults = [];
 
   try {
-    const parsedPDF = await pdfParse(buffer);
-    const extractedText = parsedPDF.text;
+    for await (const file of files) {
+      const buffer = await file.toBuffer();
+      const parsedPDF = await pdfParse(buffer);
+      let extractedText = parsedPDF.text;
 
-    const clientNumber = extractClientNumber(extractedText);
-    const referenceMonth = extractReferenceMonth(extractedText);
-    const energyKwh = extractEnergyKwh(extractedText);
-    const energySCEE = extractEnergySCEE(extractedText);
-    const compensatedEnergy = extractCompensatedEnergy(extractedText);
+      console.log("Extracted PDF Text:\n", extractedText);
 
-    const newInvoice = await prisma.invoice.create({
-      data: {
-        clientNumber,
-        referenceMonth,
-        energyKwh,
-        energySCEE,
-        compensatedEnergy,
-      },
-    });
+      const invoiceData = extractInvoiceData(extractedText);
 
-    reply.status(201).send(newInvoice);
+      const newInvoice = await prisma.invoice.create({
+        data: {
+          clientNumber: invoiceData.clientNumber,
+          installationNumber: invoiceData.installationNumber,
+          referenceMonth: invoiceData.referenceMonth,
+          dueDate: invoiceData.dueDate,
+          emissionDate: invoiceData.emissionDate,
+          amountToPay: invoiceData.amountToPay,
+          energyKwh: invoiceData.energyData.electricity.quantity,
+          energyKwhValue: invoiceData.energyData.electricity.value,
+          energySCEE: invoiceData.energyData.energySCEE.quantity,
+          energySCEEValue: invoiceData.energyData.energySCEE.value,
+          compensatedEnergy: invoiceData.energyData.compensatedEnergy.quantity,
+          compensatedEnergyValue:
+            invoiceData.energyData.compensatedEnergy.value,
+        },
+      });
+
+      invoiceResults.push(newInvoice);
+    }
+
+    reply.status(201).send(invoiceResults);
   } catch (error) {
-    reply.status(500).send({ error: 'Failed to upload and process invoice' });
+    console.error("Error uploading invoice:", error);
+    reply.status(500).send({ error: "Failed to upload and process invoices" });
   }
 };
-
-const extractClientNumber = (text: string): string => {
-  return '123456';
+// Consolidate all data extraction into a single function
+const extractInvoiceData = (text: string) => {
+  return {
+    clientNumber: extractData(text, /Nº\s+DO\s+CLIENTE[\s\S]*?(\d{10})/, "Cliente Desconhecido"),
+    installationNumber: extractData(text, /Nº\s+DA\s+INSTALAÇÃO[\s\S]*?\d{10}[\s\S]*?(\d{10})/, "Installation Number Not Found"),
+    referenceMonth: extractData(text, /Referente\s*a[\s\S]*?([A-Z]{3}\/\d{4})/, "Mês de Referência Desconhecido"),
+    dueDate: extractData(text, /Vencimento[\s\S]*?(\d{2}\/\d{2}\/\d{4})/, "Vencimento Desconhecido"),
+    amountToPay: extractAmountToPay(text),
+    emissionDate: extractData(text, /Data\s+de\s+emissão:\s*(\d{2}\/\d{2}\/\d{4})/, "Emission Date Not Found"),
+    energyData: extractEnergyData(text),
+  };
 };
 
-const extractReferenceMonth = (text: string): string => {
-  return '2024-10';
+// Reusable function to extract matched data from the text using regex
+const extractData = (text: string, regex: RegExp, defaultValue: string): string => {
+  const match = text.match(regex);
+  return match ? match[1] : defaultValue;
 };
 
-const extractEnergyKwh = (text: string): number => {
-  return 450.2;
+const extractAmountToPay = (text: string): number => {
+  const match = text.match(/R\$\s*([\d.,]+)/);
+  return match ? parseFloat(match[1].replace(".", "").replace(",", ".")) : 0;
 };
 
-const extractEnergySCEE = (text: string): number => {
-  return 300.1;
+// Extract energy data (quantity and value for electricity, energy SCEE, compensated energy)
+const extractEnergyData = (text: string): any => {
+  return {
+    electricity: extractEnergyBlock(text, /Energia Elétrica.*?kWh\s+(\d+)\s+([\d,]+)/),
+    energySCEE: extractEnergyBlock(text, /Energia\s+SCEE.*?kWh\s+(\d{1,3}(?:\.\d{3})*|\d+)\s+([\d,]+)/),
+    compensatedEnergy: extractEnergyBlock(text, /Energia\s+compensada.*?kWh\s+(\d{1,3}(?:\.\d{3})*)\s+([\d,]+)/),
+  };
 };
 
-const extractCompensatedEnergy = (text: string): number => {
-  return 150.0;
+// Extract energy block (quantity and value)
+const extractEnergyBlock = (
+  text: string,
+  regex: RegExp
+): { quantity: number; value: number } => {
+  const match = text.match(regex);
+  if (match) {
+    return {
+      quantity: parseFloat(match[1]),
+      value: parseFloat(match[2].replace(",", ".")),
+    };
+  }
+  return { quantity: 0, value: 0 };
 };
