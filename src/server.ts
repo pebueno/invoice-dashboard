@@ -1,8 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import { connectDB } from './db/connection';
 import invoiceRoutes from './routes/invoiceRoutes';
-import multipart from '@fastify/multipart';
 
 const fastify = Fastify({ logger: true });
 

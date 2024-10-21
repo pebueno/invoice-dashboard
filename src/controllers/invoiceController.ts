@@ -88,8 +88,7 @@ export const uploadInvoice = async (
           energySCEE: invoiceData.energyData.energySCEE.quantity,
           energySCEEValue: invoiceData.energyData.energySCEE.value,
           compensatedEnergy: invoiceData.energyData.compensatedEnergy.quantity,
-          compensatedEnergyValue:
-            invoiceData.energyData.compensatedEnergy.value,
+          compensatedEnergyValue: invoiceData.energyData.compensatedEnergy.value,
         },
       });
 
@@ -148,4 +147,47 @@ const extractEnergyBlock = (
     };
   }
   return { quantity: 0, value: 0 };
+};
+
+export const getEnergyConsumption = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const energyData = await prisma.invoice.findMany({
+      select: {
+        referenceMonth: true,
+        energyKwh: true,
+        energySCEE: true,
+        compensatedEnergy: true,
+      },
+    });
+
+    const processedData = energyData.map(invoice => ({
+      month: invoice.referenceMonth,
+      totalEnergyKwh: invoice.energyKwh + invoice.energySCEE,
+      compensatedEnergy: invoice.compensatedEnergy
+    }));
+
+    reply.status(200).send(processedData);
+  } catch (error) {
+    reply.status(500).send({ error: 'Failed to fetch energy consumption data' });
+  }
+};
+
+export const getFinancialResults = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const financialData = await prisma.invoice.findMany({
+      select: {
+        referenceMonth: true,
+        amountToPay: true,
+      },
+    });
+
+    const processedData = financialData.map(invoice => ({
+      month: invoice.referenceMonth,
+      totalPaid: invoice.amountToPay,
+    }));
+
+    reply.status(200).send(processedData);
+  } catch (error) {
+    reply.status(500).send({ error: 'Failed to fetch financial results' });
+  }
 };

@@ -12,7 +12,8 @@ Make sure you have the following tools installed on your machine:
 - [PostgreSQL](https://www.postgresql.org/download/)
 - [npm](https://www.npmjs.com/) (comes with Node.js)
 - [Prisma](https://www.prisma.io/) (installed through npm)
-
+- [Postman](https://www.postman.com/api-platform/api-testing/) (to test API endpoints)
+ 
 ### 📂 Project Setup
 
 1. **Clone the repository**:
@@ -51,3 +52,37 @@ Make sure you have the following tools installed on your machine:
 To run the Fastify server locally:
 ```bash
 npx ts-node src/server.ts
+```
+
+ Running the Frontend
+Navigate to the client folder:
+
+```bash
+cd client
+```
+Install client dependencies:
+
+```bash
+npm install
+```
+Start the React development server:
+
+```bash
+npm run dev
+```
+The frontend will be available at http://localhost:5173.
+
+🛠️ API Endpoints
+Upload an Invoice File
+You can upload an invoice PDF file using Postman:
+
+Open Postman and create a new POST request.
+
+Set the request URL to:
+
+```bash
+http://localhost:3000/api/upload-invoice
+```
+In the Body tab, select form-data and add a key called file. Select the PDF file you want to upload as the value.
+
+Send the request. If the upload is successful, you should receive a 201 Created status and the invoice data.
